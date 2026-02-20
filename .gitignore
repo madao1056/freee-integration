@@ -1,0 +1,30 @@
+# 環境変数
+.env
+
+# 認証関連（重要：絶対にGitにアップロードしない）
+service-account-key.json
+credentials.json
+token.json
+client_id.json
+
+# 生成されるデータファイル
+test_results.json
+account_items.json
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log
+package-lock.json
+
+# macOS
+.DS_Store
+
+# エディタ
+.vscode/
+.idea/
+
+# 一時ファイル
+*.tmp
+temp/
+debug/
