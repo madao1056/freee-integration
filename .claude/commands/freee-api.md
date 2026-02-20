@@ -58,11 +58,15 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 
 **必須フィールド**: `company_id`, `quotation_date`, `tax_entry_method`, `tax_fraction`, `withholding_tax_entry_method`, `partner_title`, `lines`
 
+**デフォルトルール:**
+- `expiration_date`（有効期限）: 指示がなければ `quotation_date` の **1ヵ月後** を自動設定する
+
 **作成例:**
 ```javascript
 {
   company_id: 12324013,
   quotation_date: "2026-02-20",       // 見積日（yyyy-MM-dd）
+  expiration_date: "2026-03-20",      // 有効期限（デフォルト: 見積日+1ヵ月）
   partner_id: 111456641,              // 取引先ID（partner_codeでも可）
   partner_title: "御中",              // "御中" | "様" | "(空白)" | "（空白）"
   subject: "○○の件",                 // 件名
