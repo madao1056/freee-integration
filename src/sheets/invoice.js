@@ -11,6 +11,7 @@ const companyId = config.freeeCompanyId;
 const INVOICE_HEADERS = ['発行日', '取引先名', '件名', '金額（税抜）', '税率(%)', '消費税', '合計', '備考', 'ステータス'];
 
 // 勘定科目マッピング（収入用）
+// ※事業所ごとにIDが異なる。`node src/main.js api:accounts` で自分の事業所のIDを取得して書き換えること
 const INCOME_ACCOUNT_MAP = {
   '売上高': 994283672
 };

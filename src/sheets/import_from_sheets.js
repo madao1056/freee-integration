@@ -13,6 +13,7 @@ const CONFIG = {
 };
 
 // 勘定科目マッピング（勘定科目名 → freee ID）
+// ※事業所ごとにIDが異なる。`node src/main.js api:accounts` で自分の事業所のIDを取得して書き換えること
 const ACCOUNT_ITEM_MAP = {
   '現金': 994283801,
   '売上高': 994283672,

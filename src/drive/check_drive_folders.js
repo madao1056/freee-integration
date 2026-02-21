@@ -3,8 +3,8 @@ const { google } = require('googleapis');
 const path = require('path');
 
 const SERVICE_ACCOUNT_FILE = './service-account-key.json';
-// URLからフォルダIDを抽出: https://drive.google.com/drive/folders/1olrlaaCZaz1goFyHBd02Setd12xOZ5qM
-const DRIVE_FOLDER_ID = '1olrlaaCZaz1goFyHBd02Setd12xOZ5qM';
+// .envのDRIVE_ROOT_FOLDER_IDから取得
+const DRIVE_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID;
 
 async function checkDriveFolders() {
   console.log('========================================');
@@ -44,7 +44,7 @@ async function checkDriveFolders() {
       if (error.message.includes('File not found')) {
         console.error('   ✗ フォルダが見つかりません');
         console.log('   → サービスアカウントにフォルダを共有してください');
-        console.log(`   → freee-sheets-reader@freee-482012.iam.gserviceaccount.com`);
+        console.log('   → service-account-key.json 内の client_email を確認してください');
         return;
       } else {
         throw error;

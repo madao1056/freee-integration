@@ -10,7 +10,7 @@ argument-hint: <操作内容 例: 見積書を作成, 取引先を変更, 口座
 
 ## 基本情報
 
-- **事業所ID**: 12324013（合同会社ぼんど）
+- **事業所ID**: `.env` の `FREEE_COMPANY_ID` を参照
 - **APIホスト**: `https://api.freee.co.jp`
 - **認証**: OAuth 2.0 Bearer Token（401時に自動リフレッシュ）
 - **共通クライアント**: `src/utils/freee_api.js`
@@ -31,7 +31,7 @@ freeeには**2つの異なるAPI**がある。用途に応じて正しいパス�
 ```javascript
 const { freeeApiRequest, getConfig } = require('./src/utils/freee_api');
 const config = getConfig();
-const companyId = config.freeeCompanyId; // 12324013
+const companyId = config.freeeCompanyId;
 
 // 会計API（取引先、勘定科目など）
 const result = await freeeApiRequest(`/api/1/ENDPOINT?company_id=${companyId}`);
@@ -64,10 +64,10 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 **作成例:**
 ```javascript
 {
-  company_id: 12324013,
+  company_id: companyId,
   quotation_date: "2026-02-20",       // 見積日（yyyy-MM-dd）
   expiration_date: "2026-03-20",      // 有効期限（デフォルト: 見積日+1ヵ月）
-  partner_id: 111456641,              // 取引先ID（partner_codeでも可）
+  partner_id: 12345678,               // 取引先ID（partner_codeでも可）
   partner_title: "御中",              // "御中" | "様" | "(空白)" | "（空白）"
   subject: "○○の件",                 // 件名
   tax_entry_method: "out",            // "out":税別, "in":税込
@@ -139,7 +139,7 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 **主要フィールド:**
 ```javascript
 {
-  company_id: 12324013,
+  company_id: companyId,
   name: "株式会社○○",             // 必須
   shortcut1: "略称",
   long_name: "正式名称",
@@ -171,12 +171,12 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 **作成例（支出）:**
 ```javascript
 {
-  company_id: 12324013,
+  company_id: companyId,
   issue_date: "2026-02-20",
   type: "expense",                 // income:収入, expense:支出
   details: [
     {
-      account_item_id: 994283808,  // 勘定科目ID
+      account_item_id: 123456789,  // 勘定科目ID（api:accountsで取得）
       tax_code: 21,                // 税区分コード
       amount: 5000,
       description: "USBケーブル"
@@ -197,10 +197,7 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 
 **種別 (type)**: `bank_account`（銀行口座）, `credit_card`（クレカ）, `wallet`（その他）
 
-**登録済み口座:**
-- ID: 4552882 - 宮崎銀行（法人）国富支店 普通
-- ID: 4595420 - 住信SBIネット銀行（法人）代表口座
-- ID: 7368931 - 現金
+**登録済み口座:** `GET /api/1/walletables?company_id={id}` で確認
 
 ### 勘定科目・税区分・その他
 
@@ -231,23 +228,11 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 | 27 | 課対仕入 8%（内税・軽減） |
 | 0 | 対象外 |
 
-※正確な一覧は `GET /api/1/taxes/companies/12324013` で取得可能。
+※正確な一覧は `GET /api/1/taxes/companies/{company_id}` で取得可能。
 
 ## 登録済み取引先
 
-APIで確認: `GET /api/1/partners?company_id=12324013`
-
-| ID | 名前 |
-|----|------|
-| 108840272 | 株式会社 Entime |
-| 109998924 | くらしな |
-| 109999039 | たいようこども園 |
-| 109999135 | 合資会社 尾崎商店 |
-| 109999269 | The Gift of Music |
-| 111214946 | 惣菜屋 レザン |
-| 111363431 | エシカルコミュニティLLP |
-| 111363817 | 株式会社みやと |
-| 111456641 | 協同組合 宮崎花市場 |
+`GET /api/1/partners?company_id={company_id}` で確認。
 
 ---
 
@@ -317,7 +302,7 @@ curl -s "https://raw.githubusercontent.com/freee/freee-api-schema/master/iv/open
 ### 実行テンプレート
 
 ```bash
-cd /Users/hashiguchimasaki/project/freee && node -e "
+node -e "
 const { freeeApiRequest, getConfig } = require('./src/utils/freee_api');
 const config = getConfig();
 async function main() {

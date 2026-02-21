@@ -12,10 +12,10 @@ require('dotenv').config();
 function getConfig() {
   return {
     freeeToken: process.env.FREEE_ACCESS_TOKEN,
-    freeeCompanyId: parseInt(process.env.FREEE_COMPANY_ID || '12324013'),
+    freeeCompanyId: parseInt(process.env.FREEE_COMPANY_ID),
     spreadsheetId: process.env.SPREADSHEET_ID,
     serviceAccountKeyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || './service-account-key.json',
-    driveRootFolderId: process.env.DRIVE_ROOT_FOLDER_ID || '1olrlaaCZaz1goFyHBd02Setd12xOZ5qM'
+    driveRootFolderId: process.env.DRIVE_ROOT_FOLDER_ID
   };
 }
 

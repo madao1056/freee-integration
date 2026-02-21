@@ -147,7 +147,7 @@ async function checkPermissions() {
       } catch (accessError) {
         console.log(`   ✗ アクセスエラー: ${accessError.message}`);
         console.log('   → サービスアカウントにスプレッドシートを共有してください');
-        console.log(`   → freee-sheets-reader@freee-482012.iam.gserviceaccount.com`);
+        console.log('   → service-account-key.json 内の client_email を確認してください');
       }
     }
 

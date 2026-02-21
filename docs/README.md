@@ -17,7 +17,7 @@ Claude Codeのスキル（`/freee-api`）で、自然言語から見積書・請
 ### 1. リポジトリのクローン
 
 ```bash
-git clone https://github.com/madao1056/freee-integration.git
+git clone https://github.com/<your-username>/freee-integration.git
 cd freee-integration
 npm install
 ```

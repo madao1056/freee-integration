@@ -3,7 +3,7 @@ const { google } = require('googleapis');
 const path = require('path');
 
 const SERVICE_ACCOUNT_FILE = './service-account-key.json';
-const SPREADSHEET_ID = '15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y';
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || process.argv[2];
 
 async function addSampleData() {
   console.log('========================================');
@@ -195,7 +195,7 @@ async function addSampleData() {
     if (error.message.includes('The caller does not have permission')) {
       console.log('\n権限エラー: サービスアカウントに書き込み権限がありません。');
       console.log('スプレッドシートの共有設定で「編集者」権限を付与してください。');
-      console.log('メールアドレス: freee-sheets-reader@freee-482012.iam.gserviceaccount.com');
+      console.log('service-account-key.json 内の client_email を確認してください');
     }
   }
 }

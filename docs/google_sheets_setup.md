@@ -87,8 +87,8 @@ SPREADSHEET_ID=your-spreadsheet-id-here
 SHEET_NAME=シート1
 
 # freee API
-FREEE_ACCESS_TOKEN=6wQ2FPL3q5r6ADH2a0q_-4Urr8Vx6atDX-CSHWXz5Gc
-FREEE_COMPANY_ID=12324013
+FREEE_ACCESS_TOKEN=your-access-token-here
+FREEE_COMPANY_ID=your-company-id-here
 ```
 
 ## スプレッドシートのフォーマット例

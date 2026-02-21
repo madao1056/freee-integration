@@ -5,8 +5,8 @@ freee会計APIとGoogle Sheets/Driveを連携する自動化ツール。
 ## プロジェクト概要
 
 - **言語**: JavaScript (Node.js)
-- **事業所**: 合同会社ぼんど (ID: 12324013)
-- **スプレッドシートID**: `15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y`
+- **事業所**: `.env` の `FREEE_COMPANY_ID` を参照
+- **スプレッドシートID**: `.env` の `SPREADSHEET_ID` を参照
 - **認証**: freee OAuth 2.0 + Google サービスアカウント
 
 ## ディレクトリ構成
@@ -35,10 +35,10 @@ freeeのデータをGoogle Sheetsにエクスポートする。以下の手順�
 **手順:**
 
 1. **環境確認** - `.env`ファイルの`FREEE_ACCESS_TOKEN`と`FREEE_COMPANY_ID`が設定されているか確認
-2. **スプレッドシートID確認** - ユーザーにエクスポート先のスプレッドシートIDを確認（デフォルト: `15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y`）
+2. **スプレッドシートID確認** - ユーザーにエクスポート先のスプレッドシートIDを確認（`.env`の`SPREADSHEET_ID`を使用）
 3. **コマンド実行** - 以下を実行:
    ```bash
-   cd /Users/hashiguchimasaki/project/freee && node src/main.js sheets:export <スプレッドシートID>
+   node src/main.js sheets:export <スプレッドシートID>
    ```
 4. **結果確認** - 出力ログを確認し、以下のシートが作成されたことを報告:
    - **取引一覧**: 取引ID, 発生日, 種別, 取引先, 金額, 消費税, 勘定科目, 税区分, 備考, ステータス
@@ -55,7 +55,7 @@ Google Sheetsのデータをfreeeに取引登録する。以下の手順をス�
 **手順:**
 
 1. **環境確認** - `.env`ファイルの`FREEE_ACCESS_TOKEN`と`FREEE_COMPANY_ID`が設定されているか確認
-2. **スプレッドシートID確認** - ユーザーにインポート元のスプレッドシートIDを確認（デフォルト: `15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y`）
+2. **スプレッドシートID確認** - ユーザーにインポート元のスプレッドシートIDを確認（`.env`の`SPREADSHEET_ID`を使用）
 3. **シートのフォーマット確認** - 「インポート」シートに以下の列構成でデータが入っていることを確認:
 
    | 列 | A | B | C | D | E | F | G | H |
@@ -69,7 +69,7 @@ Google Sheetsのデータをfreeeに取引登録する。以下の手順をス�
 
 4. **コマンド実行** - 以下を実行:
    ```bash
-   cd /Users/hashiguchimasaki/project/freee && node src/main.js sheets:import <スプレッドシートID>
+   node src/main.js sheets:import <スプレッドシートID>
    ```
 5. **結果確認** - 出力ログを確認し、成功/失敗件数を報告。処理済のレコードはH列が「処理済」に自動更新される
 6. **エラー時** - 勘定科目名が一致しない場合は`src/sheets/import_from_sheets.js`の`ACCOUNT_ITEM_MAP`を確認。新しい勘定科目を追加する必要がある場合は`api:accounts`コマンドで勘定科目IDを取得

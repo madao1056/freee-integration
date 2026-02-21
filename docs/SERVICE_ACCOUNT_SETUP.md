@@ -53,7 +53,7 @@ https://console.cloud.google.com/
 #### 5.3 ファイルの保存
 - 自動的にJSONファイルがダウンロードされる
 - ファイル名を `service-account-key.json` に変更
-- `/Users/hashiguchimasaki/project/freee/` フォルダに保存
+- プロジェクトルートフォルダに保存
 
 ### 6. スプレッドシートへのアクセス権限付与
 

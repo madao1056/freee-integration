@@ -37,9 +37,9 @@ function showHelp() {
   setup                            初期セットアップガイド
 
 例:
-  node main.js sheets:import 15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y
-  node main.js sheets:report 15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y 2026-01
-  node main.js sheets:invoice 15ew2ysd7XREZQW4IxxGVmueQ5plFQ_xy-ISkG3s-P9Y export
+  node main.js sheets:import <your-spreadsheet-id>
+  node main.js sheets:report <your-spreadsheet-id> 2026-01
+  node main.js sheets:invoice <your-spreadsheet-id> export
   node main.js drive:upload 2025.12
   node main.js api:test
 
