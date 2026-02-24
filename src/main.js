@@ -31,6 +31,7 @@ function showHelp() {
   api:test                          freee API動作確認
   api:companies                     事業所情報取得
   api:accounts                      勘定科目一覧取得
+  api:audit [year] [--sheets id]    確定申告データ品質チェック
 
 ⚙️  設定・テスト:
   auth:test                         Google認証テスト
@@ -41,6 +42,8 @@ function showHelp() {
   node main.js sheets:report <your-spreadsheet-id> 2026-01
   node main.js sheets:invoice <your-spreadsheet-id> export
   node main.js drive:upload 2025.12
+  node main.js api:audit 2025
+  node main.js api:audit 2025 --sheets <spreadsheet-id>
   node main.js api:test
 
 詳細なドキュメント:
@@ -153,6 +156,12 @@ async function runCommand(command, args) {
 
     case 'api:accounts':
       require('./api/get_account_items.js');
+      break;
+
+    case 'api:audit':
+      // 引数をprocess.argvに渡す（年度、--sheets オプション）
+      process.argv = ['node', 'tax_audit.js', ...args];
+      require('./api/tax_audit.js');
       break;
 
     // 設定・テスト
