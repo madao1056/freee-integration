@@ -33,6 +33,10 @@ function showHelp() {
   api:accounts                      勘定科目一覧取得
   api:audit [year] [--sheets id]    確定申告データ品質チェック
 
+💬 Lark連携:
+  lark:test                        Lark Bot接続テスト
+  lark:notify                      未処理明細をLarkに通知
+
 ⚙️  設定・テスト:
   auth:test                         Google認証テスト
   setup                            初期セットアップガイド
@@ -163,6 +167,70 @@ async function runCommand(command, args) {
       process.argv = ['node', 'tax_audit.js', ...args];
       require('./api/tax_audit.js');
       break;
+
+    // Lark連携
+    case 'lark:test': {
+      const { getToken, sendText } = require('./utils/lark');
+      const chatId = process.env.LARK_CHAT_ID;
+      console.log('Lark Bot 接続テスト...');
+      const token = await getToken();
+      console.log('   ✓ token取得成功');
+      if (chatId) {
+        await sendText(chatId, '✓ freee-integration Bot 接続テスト成功');
+        console.log('   ✓ メッセージ送信成功');
+      } else {
+        console.log('   ⚠ LARK_CHAT_IDが未設定のためメッセージ送信をスキップ');
+      }
+      console.log('   Lark連携は正常です');
+      break;
+    }
+
+    case 'lark:notify': {
+      const lark = require('./utils/lark');
+      const { freeeApiRequest, getConfig: getFreeeConfig } = require('./utils/freee_api');
+      const cfg = getFreeeConfig();
+      const larkChatId = process.env.LARK_CHAT_ID;
+      if (!larkChatId) {
+        console.error('エラー: LARK_CHAT_IDが設定されていません');
+        process.exit(1);
+      }
+
+      console.log('未処理の口座明細を取得中...');
+      const wallets = await freeeApiRequest(`/api/1/walletables?company_id=${cfg.freeeCompanyId}`);
+      const acctRes = await freeeApiRequest(`/api/1/account_items?company_id=${cfg.freeeCompanyId}`);
+      const acctMap = {};
+      for (const a of acctRes.account_items) acctMap[a.id] = a.name;
+
+      let unprocessed = 0;
+      for (const w of (wallets.walletables || [])) {
+        const txns = await freeeApiRequest(
+          `/api/1/wallet_txns?company_id=${cfg.freeeCompanyId}&walletable_id=${w.id}&walletable_type=${w.type}&limit=100`
+        );
+        for (const t of (txns.wallet_txns || [])) {
+          if (!t.deal_id) {
+            await lark.notifyDeal(larkChatId, {
+              date: t.date,
+              account: '未分類',
+              amount: t.amount,
+              description: t.description || '（摘要なし）',
+              partner: w.name,
+              status: '提案'
+            });
+            unprocessed++;
+            // API制限考慮
+            await new Promise(r => setTimeout(r, 500));
+          }
+        }
+      }
+
+      if (unprocessed === 0) {
+        await lark.sendText(larkChatId, '✓ 未処理の口座明細はありません');
+        console.log('未処理明細なし');
+      } else {
+        console.log(`${unprocessed}件の未処理明細をLarkに通知しました`);
+      }
+      break;
+    }
 
     // 設定・テスト
     case 'auth:test':
