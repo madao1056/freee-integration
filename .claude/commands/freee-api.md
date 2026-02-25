@@ -185,6 +185,85 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 }
 ```
 
+### レシート / ファイルボックス (Receipts)
+
+| 操作 | メソッド | パス |
+|------|---------|------|
+| アップロード | POST | `/api/1/receipts`（multipart/form-data） |
+| 一覧取得 | GET | `/api/1/receipts?company_id={id}` |
+| 詳細取得 | GET | `/api/1/receipts/{id}?company_id={id}` |
+| 削除 | DELETE | `/api/1/receipts/{id}?company_id={id}` |
+
+**アップロード例（Google Driveから）:**
+```javascript
+const { google } = require('googleapis');
+const path = require('path');
+const FormData = require('form-data');
+const { freeeApiUpload, freeeApiRequest, getConfig } = require('./src/utils/freee_api');
+const config = getConfig();
+
+// 1. Google Driveからファイル検索
+const auth = new google.auth.GoogleAuth({
+  keyFile: path.resolve('./service-account-key.json'),
+  scopes: ['https://www.googleapis.com/auth/drive.readonly']
+});
+const drive = google.drive({ version: 'v3', auth });
+
+const res = await drive.files.list({
+  q: "name contains 'ファイル名キーワード'",
+  fields: 'files(id, name, mimeType)'
+});
+const file = res.data.files[0];
+
+// 2. ダウンロード
+const response = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'stream' });
+const chunks = [];
+for await (const chunk of response.data) { chunks.push(chunk); }
+const fileBuffer = Buffer.concat(chunks);
+
+// 3. freeeファイルボックスにアップロード
+const form = new FormData();
+form.append('company_id', config.freeeCompanyId.toString());
+form.append('receipt', fileBuffer, { filename: file.name, contentType: file.mimeType });
+const uploadResult = await freeeApiUpload('/api/1/receipts', form);
+const receiptId = uploadResult.receipt.id;
+```
+
+### 取引へのレシート紐付け
+
+**重要**: 取引の更新（PUT）は**全フィールド必須**。receipt_idsだけ送ると400エラーになる。
+必ず先にGETで現在の取引を取得し、全フィールドを含めてPUTする。
+
+```javascript
+// 1. 取引の現在状態を取得
+const deal = await freeeApiRequest('/api/1/deals/' + dealId + '?company_id=' + config.freeeCompanyId);
+const d = deal.deal;
+
+// 2. 全フィールドを維持しつつ receipt_ids を追加してPUT
+await freeeApiRequest('/api/1/deals/' + dealId, 'PUT', {
+  company_id: config.freeeCompanyId,
+  issue_date: d.issue_date,
+  type: d.type,
+  details: d.details.map(det => ({
+    id: det.id,
+    account_item_id: det.account_item_id,
+    tax_code: det.tax_code,
+    amount: det.amount,
+    description: det.description
+  })),
+  receipt_ids: [receiptId]
+});
+```
+
+### 経費登録＋レシート紐付けの一括フロー
+
+経費計上とレシートが同時に依頼された場合の推奨手順:
+
+1. **勘定科目ID・税区分コードを取得** — `GET /api/1/account_items`, `GET /api/1/taxes/codes`
+2. **取引を登録** — `POST /api/1/deals`（dealIdを控える）
+3. **レシートをアップロード** — `POST /api/1/receipts`（multipart、receiptIdを控える）
+4. **取引にレシートを紐付け** — `GET /api/1/deals/{dealId}` → `PUT /api/1/deals/{dealId}`（全フィールド＋receipt_ids）
+
 ### 口座 (Walletables)
 
 | 操作 | メソッド | パス |
@@ -246,7 +325,9 @@ const result = await freeeApiRequest('/iv/ENDPOINT', 'POST', { company_id: compa
 6. **tax_rate は数値**: 請求書APIの `tax_rate` は `0`, `8`, `10` のいずれか（税区分コードではない）
 7. **partner_title は必須**: 見積書・請求書作成時に `"御中"`, `"様"`, `"(空白)"` のいずれかが必須
 8. **日付フォーマット**: 常に `yyyy-MM-dd` 形式
-9. **APIスキーマ参照**: 会計APIは `config/api-schema.json`、請求書APIは `https://raw.githubusercontent.com/freee/freee-api-schema/master/iv/open-api-3/api-schema.yml`
+9. **取引PUT は全フィールド必須**: 取引を更新（レシート紐付け含む）するときは、先にGETで取得した全フィールドを含めてPUTする。部分更新は不可
+10. **レシートアップロードは multipart**: `freeeApiUpload()` を使う。`freeeApiRequest()` ではない
+11. **APIスキーマ参照**: 会計APIは `config/api-schema.json`、請求書APIは `https://raw.githubusercontent.com/freee/freee-api-schema/master/iv/open-api-3/api-schema.yml`
 
 ## エンドポイント検索方法
 
