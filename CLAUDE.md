@@ -7,7 +7,7 @@ freee会計APIとGoogle Sheets/Driveを連携する自動化ツール。
 - **言語**: JavaScript (Node.js)
 - **事業所**: `.env` の `FREEE_COMPANY_ID` を参照
 - **スプレッドシートID**: `.env` の `SPREADSHEET_ID` を参照
-- **認証**: freee OAuth 2.0 + Google サービスアカウント
+- **認証**: freee OAuth 2.0 + Google サービスアカウント + Lark Bot
 
 ## ディレクトリ構成
 
@@ -24,6 +24,7 @@ src/
   utils/
     freee_api.js         # API共通クライアント（トークン自動更新付き）
     sheets_helper.js     # Sheets操作ヘルパー
+    lark.js              # Lark Bot共通クライアント（通知・カード送信）
 ```
 
 ## ユーザーキーワード操作
@@ -113,6 +114,12 @@ node src/main.js api:accounts
 
 # 確定申告データ品質チェック
 node src/main.js api:audit [year] [--sheets spreadsheet-id]
+
+# Lark Bot接続テスト
+node src/main.js lark:test
+
+# 未処理口座明細をLarkに通知
+node src/main.js lark:notify
 ```
 
 ## 注意事項

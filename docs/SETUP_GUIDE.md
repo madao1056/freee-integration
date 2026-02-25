@@ -13,9 +13,10 @@
 2. [プロジェクトのセットアップ](#2-プロジェクトのセットアップ)
 3. [freee APIの準備](#3-freee-apiの準備)
 4. [Google APIの準備](#4-google-apiの準備)
-5. [環境変数の設定](#5-環境変数の設定)
-6. [動作確認](#6-動作確認)
-7. [トラブルシューティング](#7-トラブルシューティング)
+5. [Lark連携の準備](#5-lark連携の準備)
+6. [環境変数の設定](#6-環境変数の設定)
+7. [動作確認](#7-動作確認)
+8. [トラブルシューティング](#8-トラブルシューティング)
 
 ---
 
@@ -195,15 +196,74 @@ https://docs.google.com/spreadsheets/d/【この部分がID】/edit
 
 ---
 
-## 5. 環境変数の設定
+## 5. Lark連携の準備
 
-### 5-1. .envファイルの作成
+Lark Botによる仕訳提案通知を使う場合に設定します。（オプション）
+
+### 5-1. Larkアプリの作成
+
+1. https://open.larksuite.com/ にアクセス
+2. 「Create Custom App」をクリック
+3. 設定:
+   - Name: `freee-integration`
+   - Description: `freee会計データの自動仕訳提案・経費管理を行うBot`
+   - Icon: 任意の画像
+
+4. 作成後、以下の値をメモ:
+   - **App ID** → `.env` の `LARK_APP_ID`
+   - **App Secret** → `.env` の `LARK_APP_SECRET`
+
+### 5-2. Bot機能の有効化
+
+1. アプリの **「Features」** → **「Bot」** を有効にする
+
+### 5-3. 権限の追加
+
+**「Permissions」** で以下を検索して追加:
+
+| 権限 | 用途 |
+|---|---|
+| `im:message:send_as_bot` | Botからメッセージ送信 |
+| `im:chat:readonly` | グループチャット情報の読み取り |
+| `im:resource` | 画像・ファイル送信 |
+
+### 5-4. アプリの公開
+
+1. **「Version Management & Release」** → **「Create a version」**
+2. App version: `1.0.0`
+3. Default feature (mobile/desktop): **Bot**
+4. Submit → 管理者として承認
+
+### 5-5. チャットIDの取得
+
+アプリ公開後、接続テストを実行するとチャットIDが自動取得されます:
+
+```bash
+node src/main.js lark:test
+```
+
+または、`.env` に `LARK_APP_ID` と `LARK_APP_SECRET` を設定した状態で以下を実行:
+
+```bash
+node -e "
+const { sendTextToEmail } = require('./src/utils/lark');
+sendTextToEmail('あなたのLarkメールアドレス', 'テスト').then(r => console.log('chat_id:', r.data.chat_id));
+"
+```
+
+表示された `chat_id` を `.env` の `LARK_CHAT_ID` に設定してください。
+
+---
+
+## 6. 環境変数の設定
+
+### 6-1. .envファイルの作成
 
 ```bash
 cp .env.example .env
 ```
 
-### 5-2. 値を入力
+### 7-2. 値を入力
 
 `.env` を開いて、これまで取得した値を入力:
 
@@ -222,6 +282,11 @@ GOOGLE_SERVICE_ACCOUNT_KEY_FILE=./service-account-key.json
 
 # Google Drive設定（Drive連携を使う場合）
 DRIVE_ROOT_FOLDER_ID=DriveフォルダID
+
+# Lark設定（Lark連携を使う場合）
+LARK_APP_ID=LarkアプリのApp ID
+LARK_APP_SECRET=LarkアプリのApp Secret
+LARK_CHAT_ID=通知先のチャットID
 ```
 
 ### 設定の優先度
@@ -232,14 +297,15 @@ DRIVE_ROOT_FOLDER_ID=DriveフォルダID
 | トークン自動更新 | 上記 + `FREEE_CLIENT_ID`, `FREEE_CLIENT_SECRET`, `FREEE_REFRESH_TOKEN` |
 | Sheets連携 | 上記 + `SPREADSHEET_ID`, `service-account-key.json` |
 | Drive連携 | 上記 + `DRIVE_ROOT_FOLDER_ID` |
+| Lark連携 | `LARK_APP_ID`, `LARK_APP_SECRET`, `LARK_CHAT_ID` |
 
 ---
 
-## 6. 動作確認
+## 7. 動作確認
 
 上から順に実行して、各機能の接続を確認してください。
 
-### 6-1. freee API接続テスト
+### 7-1. freee API接続テスト
 
 ```bash
 node src/main.js api:test
@@ -247,31 +313,47 @@ node src/main.js api:test
 
 成功すると事業所情報が表示されます。
 
-### 6-2. 事業所情報の確認
+### 7-2. 事業所情報の確認
 
 ```bash
 node src/main.js api:companies
 ```
 
-### 6-3. 勘定科目一覧
+### 7-3. 勘定科目一覧
 
 ```bash
 node src/main.js api:accounts
 ```
 
-### 6-4. Google認証テスト（Sheets連携を使う場合）
+### 7-4. Google認証テスト（Sheets連携を使う場合）
 
 ```bash
 node src/main.js auth:test
 ```
 
-### 6-5. freeeデータのエクスポート
+### 7-5. freeeデータのエクスポート
 
 ```bash
 node src/main.js sheets:export YOUR_SPREADSHEET_ID
 ```
 
-### 6-6. 全コマンド一覧の確認
+### 7-6. Lark接続テスト（Lark連携を使う場合）
+
+```bash
+node src/main.js lark:test
+```
+
+成功するとLarkにテストメッセージが届きます。
+
+### 7-7. 未処理明細のLark通知テスト
+
+```bash
+node src/main.js lark:notify
+```
+
+口座の未処理明細がカード形式でLarkに通知されます。
+
+### 7-8. 全コマンド一覧の確認
 
 ```bash
 node src/main.js help
@@ -279,7 +361,7 @@ node src/main.js help
 
 ---
 
-## 7. トラブルシューティング
+## 8. トラブルシューティング
 
 ### freee API関連
 
@@ -298,6 +380,14 @@ node src/main.js help
 | `The caller does not have permission` | スプレッドシートの共有設定不足 | サービスアカウントのメールを共有設定に追加 |
 | `API has not been enabled` | Google Sheets APIが無効 | GCPコンソールでAPIを有効化 |
 
+### Lark関連
+
+| エラー | 原因 | 対処 |
+|---|---|---|
+| `LARK_APP_ID / LARK_APP_SECRET が設定されていません` | `.env`未設定 | `.env`にLark設定を追加 |
+| `Lark token取得失敗` | App ID/Secretが不正 | Lark管理画面で値を再確認 |
+| メッセージが届かない | アプリ未公開 or 権限不足 | バージョンを公開し、`im:message:send_as_bot` 権限を確認 |
+
 ### その他
 
 | エラー | 原因 | 対処 |
@@ -314,4 +404,5 @@ node src/main.js help
 - **「エクスポート」** — freeeデータをスプレッドシートに出力
 - **「インポート」** — スプレッドシートからfreeeに取引を登録
 - **`node src/main.js api:audit`** — 確定申告前のデータ品質チェック
+- **`node src/main.js lark:notify`** — 未処理明細をLarkに通知して確認
 - **`/freee-api 見積書を作成`** — Claude Codeから自然言語でAPI操作
