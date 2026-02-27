@@ -36,6 +36,9 @@ function showHelp() {
 💬 Lark連携:
   lark:test                        Lark Bot接続テスト
   lark:notify                      未処理明細をLarkに通知
+  lark:base:init                   Lark Base作成・テーブル初期化
+  lark:base:sync                   freeeデータをLark Baseに同期
+  lark:base:status                 Lark Base同期状況確認
 
 ⚙️  設定・テスト:
   auth:test                         Google認証テスト
@@ -229,6 +232,52 @@ async function runCommand(command, args) {
       } else {
         console.log(`${unprocessed}件の未処理明細をLarkに通知しました`);
       }
+      break;
+    }
+
+    // Lark Base連携
+    case 'lark:base:init': {
+      const base = require('./lark/base');
+      console.log('========================================');
+      console.log('  Lark Base 初期化');
+      console.log('========================================\n');
+      const result = await base.initBase();
+      console.log('\n========================================');
+      console.log('  初期化完了');
+      console.log('========================================');
+      console.log(`Base URL: ${result.url}`);
+      console.log('次のステップ: node main.js lark:base:sync');
+      break;
+    }
+
+    case 'lark:base:sync': {
+      const base = require('./lark/base');
+      console.log('========================================');
+      console.log('  Lark Base データ同期');
+      console.log('========================================\n');
+
+      console.log('1. 取引一覧を同期中...');
+      const dealCount = await base.syncDeals();
+
+      console.log('\n2. 口座明細を同期中...');
+      const walletCount = await base.syncWalletTxns();
+
+      console.log('\n3. 月次サマリーを同期中...');
+      const summaryCount = await base.syncMonthlySummary();
+
+      console.log('\n========================================');
+      console.log('  同期完了');
+      console.log('========================================');
+      console.log(`取引: ${dealCount}件 / 口座明細: ${walletCount}件 / サマリー: ${summaryCount}件`);
+      break;
+    }
+
+    case 'lark:base:status': {
+      const base = require('./lark/base');
+      console.log('========================================');
+      console.log('  Lark Base 同期状況');
+      console.log('========================================\n');
+      await base.showStatus();
       break;
     }
 

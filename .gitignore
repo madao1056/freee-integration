@@ -24,6 +24,9 @@ package-lock.json
 .vscode/
 .idea/
 
+# Lark Base設定
+.lark_base_config.json
+
 # 一時ファイル
 *.tmp
 temp/
