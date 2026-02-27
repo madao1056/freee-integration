@@ -67,9 +67,7 @@ async function fetchPartners() {
  * @param {number} fiscalYear
  * @returns {Promise<object>}
  */
-async function fetchTrialPl(fiscalYear) {
-  const startDate = `${fiscalYear}-01-01`;
-  const endDate = `${fiscalYear}-12-31`;
+async function fetchTrialPl(startDate, endDate) {
   const res = await freeeApiRequest(
     `/api/1/reports/trial_pl?company_id=${companyId}&start_date=${startDate}&end_date=${endDate}`
   );
@@ -168,11 +166,15 @@ function checkDuplicates(deals) {
 /**
  * 5. 月別推移チェック
  */
-function checkMonthlyTrend(deals, fiscalYear) {
+function checkMonthlyTrend(deals, startDate, endDate) {
   const monthly = {};
-  for (let m = 1; m <= 12; m++) {
-    const key = `${fiscalYear}-${String(m).padStart(2, '0')}`;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor <= end) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
     monthly[key] = { count: 0, expense: 0, income: 0 };
+    cursor.setMonth(cursor.getMonth() + 1);
   }
 
   for (const deal of deals) {
@@ -190,7 +192,8 @@ function checkMonthlyTrend(deals, fiscalYear) {
 
   // 平均を算出し、極端に少ない月を警告
   const counts = Object.values(monthly).map(m => m.count);
-  const avg = counts.reduce((a, b) => a + b, 0) / 12;
+  const monthCount = counts.length || 1;
+  const avg = counts.reduce((a, b) => a + b, 0) / monthCount;
   const warnings = [];
   for (const [month, data] of Object.entries(monthly)) {
     if (data.count > 0 && data.count < avg * 0.3) {
@@ -540,25 +543,31 @@ async function exportToSheets(spreadsheetId, fiscalYear, results) {
 async function main() {
   // 引数解析
   const args = process.argv.slice(2);
-  let fiscalYear = new Date().getFullYear();
   let spreadsheetId = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--sheets' && args[i + 1]) {
       spreadsheetId = args[i + 1];
       i++;
-    } else if (/^\d{4}$/.test(args[i])) {
-      fiscalYear = parseInt(args[i]);
     }
   }
 
-  const startDate = `${fiscalYear}-01-01`;
-  const endDate = `${fiscalYear}-12-31`;
+  // 事業所の会計年度を取得
+  const companyRes = await freeeApiRequest(`/api/1/companies/${companyId}`);
+  const fiscalYears = companyRes.company.fiscal_years || [];
+  if (fiscalYears.length === 0) {
+    console.error('エラー: 会計年度情報が取得できません');
+    process.exit(1);
+  }
+  const fy = fiscalYears[fiscalYears.length - 1];
+  const startDate = fy.start_date;
+  const endDate = fy.end_date;
+  const fiscalYear = `${startDate} ～ ${endDate}`;
 
   console.log('========================================');
-  console.log(`  確定申告データ品質チェック（${fiscalYear}年度）`);
+  console.log(`  確定申告データ品質チェック`);
   console.log('========================================\n');
-  console.log(`対象期間: ${startDate} ～ ${endDate}\n`);
+  console.log(`会計年度: ${fiscalYear}\n`);
 
   // データ取得
   console.log('データ取得中...');
@@ -566,7 +575,7 @@ async function main() {
     fetchAllDeals(startDate, endDate).then(d => { console.log(`   ✓ 取引: ${d.length}件`); return d; }),
     fetchAccountItems().then(a => { console.log(`   ✓ 勘定科目: ${a.length}件`); return a; }),
     fetchPartners().then(p => { console.log(`   ✓ 取引先: ${p.length}件`); return p; }),
-    fetchTrialPl(fiscalYear).then(t => { console.log(`   ✓ 試算表取得完了`); return t; })
+    fetchTrialPl(startDate, endDate).then(t => { console.log(`   ✓ 試算表取得完了`); return t; })
   ]);
   console.log('');
 
@@ -583,7 +592,7 @@ async function main() {
     noDescription: checkNoDescription(deals, accountMap),
     noPartner: checkNoPartner(deals),
     duplicates: checkDuplicates(deals),
-    monthlyTrend: checkMonthlyTrend(deals, fiscalYear),
+    monthlyTrend: checkMonthlyTrend(deals, startDate, endDate),
     accountSummary: aggregateByAccount(deals, accountMap),
     trialBalance: checkTrialBalance(deals, trialPl)
   };

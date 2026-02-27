@@ -326,6 +326,7 @@ await freeeApiRequest('/api/1/deals/' + dealId, 'PUT', {
 7. **partner_title は必須**: 見積書・請求書作成時に `"御中"`, `"様"`, `"(空白)"` のいずれかが必須
 8. **日付フォーマット**: 常に `yyyy-MM-dd` 形式
 9. **取引PUT は全フィールド必須**: 取引を更新（レシート紐付け含む）するときは、先にGETで取得した全フィールドを含めてPUTする。部分更新は不可
+   - **`description` に null は不可**: GETで取得した `description` が `null` の場合、PUTでは `""` (空文字)に置き換えること。`null` のまま送ると400エラーになる
 10. **レシートアップロードは multipart**: `freeeApiUpload()` を使う。`freeeApiRequest()` ではない
 11. **APIスキーマ参照**: 会計APIは `config/api-schema.json`、請求書APIは `https://raw.githubusercontent.com/freee/freee-api-schema/master/iv/open-api-3/api-schema.yml`
 
