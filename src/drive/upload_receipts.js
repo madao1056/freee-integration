@@ -2,7 +2,7 @@
 const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiUpload, getConfig } = require('../utils/freee_api');
 
 // 設定
@@ -79,9 +79,18 @@ async function uploadToFreeeFilebox(fileName, fileBuffer, mimeType) {
   return freeeApiUpload('/api/1/receipts', form);
 }
 
+// プロファイル対応の処理済みファイルパス
+function getProcessedFilePath() {
+  const { getCurrentProfile } = require('../utils/freee_api');
+  const profile = getCurrentProfile();
+  return profile
+    ? `./processed_receipts.${profile}.json`
+    : './processed_receipts.json';
+}
+
 // 処理済みファイル記録の読み込み
 function loadProcessedFiles() {
-  const filePath = './processed_receipts.json';
+  const filePath = getProcessedFilePath();
   if (fs.existsSync(filePath)) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   }
@@ -90,7 +99,7 @@ function loadProcessedFiles() {
 
 // 処理済みファイル記録の保存
 function saveProcessedFiles(data) {
-  fs.writeFileSync('./processed_receipts.json', JSON.stringify(data, null, 2));
+  fs.writeFileSync(getProcessedFilePath(), JSON.stringify(data, null, 2));
 }
 
 // メイン処理

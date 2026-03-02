@@ -1,6 +1,6 @@
 // Lark Base (Bitable) × freee 連携
 // Base作成・テーブル管理・freeeデータ同期
-const { larkApiRequest } = require('../utils/lark');
+const { larkApiRequest, grantAccessToChatMembers } = require('../utils/lark');
 const { freeeApiRequest, getConfig } = require('../utils/freee_api');
 const { loadConfig, saveConfig, getAppToken, getTableId } = require('./base_config');
 
@@ -16,7 +16,9 @@ const TAX_CODE_NAMES = {
 // テーブル定義
 const TABLE_DEFINITIONS = {
   '取引一覧': [
-    { field_name: 'freee_deal_id', type: 2 },   // Number
+    { field_name: 'freee_detail_key', type: 1 }, // Text: "deal_id_detailIndex" でユニーク識別
+    { field_name: 'freee_deal_id', type: 2 },     // Number
+    { field_name: '明細行', type: 2 },             // Number: detail index (0-based)
     { field_name: '日付', type: 5 },              // DateTime
     { field_name: '種別', type: 3, property: { options: [{ name: '収入' }, { name: '支出' }] } }, // SingleSelect
     { field_name: '取引先', type: 1 },             // Text
@@ -28,12 +30,14 @@ const TABLE_DEFINITIONS = {
     { field_name: 'ステータス', type: 3, property: { options: [{ name: '決済済' }, { name: '未決済' }] } }
   ],
   '口座明細': [
+    { field_name: 'freee_txn_id', type: 2 },     // Number: wallet_txn.id でユニーク識別
     { field_name: '日付', type: 5 },
     { field_name: '口座名', type: 1 },
-    { field_name: '口座種別', type: 3, property: { options: [{ name: 'bank_account' }, { name: 'credit_card' }] } },
+    { field_name: '口座種別', type: 3, property: { options: [{ name: 'bank_account' }, { name: 'credit_card' }, { name: 'wallet' }] } },
+    { field_name: '入出金', type: 3, property: { options: [{ name: '入金' }, { name: '出金' }] } },
     { field_name: '金額', type: 2 },
     { field_name: '摘要', type: 1 },
-    { field_name: 'freee連携', type: 3, property: { options: [{ name: '連携済' }, { name: '未連携' }] } },
+    { field_name: 'ステータス', type: 3, property: { options: [{ name: '消込待ち' }, { name: '消込済み' }, { name: '無視' }, { name: '消込中' }, { name: '対象外' }] } },
     { field_name: 'freee_deal_id', type: 2 }
   ],
   '月次サマリー': [
@@ -169,6 +173,14 @@ async function initBase() {
     // 削除失敗は無視（デフォルトテーブルが無い場合もある）
   }
 
+  // チャットメンバーにfull_access権限を自動付与
+  try {
+    await grantAccessToChatMembers(app.app_token, 'bitable');
+    console.log('   ✓ チャットメンバーに権限付与');
+  } catch (e) {
+    console.log('   ⚠ 権限付与に失敗（手動で設定してください）');
+  }
+
   saveConfig({
     app_token: app.app_token,
     url: app.url,
@@ -217,16 +229,33 @@ async function syncDeals() {
 
   console.log(`   freee取引: ${allDeals.length}件`);
 
-  // 既存レコードからfreee_deal_idのセットを取得
+  // 既存レコードから freee_detail_key のセットを取得（deal_id_detailIndex 形式）
   const existingRecords = await listRecords(appToken, tableId);
-  const existingDealIds = new Set();
+  const existingKeys = new Set();
   for (const r of existingRecords) {
-    const id = r.fields && r.fields.freee_deal_id;
-    if (id) existingDealIds.add(id);
+    const f = r.fields || {};
+    // 新形式: freee_detail_key で判定
+    if (f.freee_detail_key) {
+      existingKeys.add(f.freee_detail_key);
+    } else if (f.freee_deal_id) {
+      // 旧形式（freee_detail_key なし）: deal_id のみで既存と見なす
+      existingKeys.add(`${f.freee_deal_id}_0`);
+    }
   }
-  console.log(`   既存レコード: ${existingDealIds.size}件`);
+  console.log(`   既存レコード: ${existingKeys.size}件`);
 
-  // 新規レコードを構築
+  // 税区分マッピングを動的に取得
+  const taxCodeMap = { ...TAX_CODE_NAMES };
+  try {
+    const taxRes = await freeeApiRequest(`/api/1/taxes/companies/${companyId}`);
+    for (const t of (taxRes.taxes || [])) {
+      taxCodeMap[t.code] = t.name_ja;
+    }
+  } catch (e) {
+    console.log('   ⚠ 税区分マスタの取得に失敗（ハードコード値を使用）');
+  }
+
+  // 新規レコードを構築（明細行ごとにユニークキーで管理）
   const newRecords = [];
   for (const deal of allDeals) {
     const type = deal.type === 'income' ? '収入' : '支出';
@@ -236,21 +265,24 @@ async function syncDeals() {
       partnerName = partnerMap[deal.partner_id];
     }
 
-    for (const detail of (deal.details || [])) {
-      // deal.id + detail行番号でユニーク判定（1つのdealに複数detail）
-      // ただしBase側はdeal_idのみ格納なので、deal_id自体で重複チェック
-      if (existingDealIds.has(deal.id)) continue;
+    const details = deal.details || [];
+    for (let i = 0; i < details.length; i++) {
+      const detail = details[i];
+      const detailKey = `${deal.id}_${i}`;
+      if (existingKeys.has(detailKey)) continue;
 
       newRecords.push({
         fields: {
+          freee_detail_key: detailKey,
           freee_deal_id: deal.id,
+          '明細行': i,
           '日付': deal.issue_date ? new Date(deal.issue_date).getTime() : null,
           '種別': type,
           '取引先': partnerName,
           '勘定科目': acctMap[detail.account_item_id] || String(detail.account_item_id),
           '金額': detail.amount,
           '消費税': detail.vat || 0,
-          '税区分': TAX_CODE_NAMES[detail.tax_code] || String(detail.tax_code),
+          '税区分': taxCodeMap[detail.tax_code] || String(detail.tax_code),
           '摘要': detail.description || '',
           'ステータス': status
         }
@@ -284,12 +316,14 @@ async function syncWalletTxns() {
   // 口座一覧
   const wallets = await freeeApiRequest(`/api/1/walletables?company_id=${companyId}`);
 
-  // 既存レコードの摘要+日付+金額セット（口座明細にはユニークIDが無いため）
+  // 既存レコードから freee_txn_id のセットを取得
   const existingRecords = await listRecords(appToken, tableId);
-  const existingKeys = new Set();
+  const existingTxnIds = new Set();
   for (const r of existingRecords) {
     const f = r.fields || {};
-    existingKeys.add(`${f['日付']}_${f['金額']}_${f['摘要']}`);
+    if (f.freee_txn_id) {
+      existingTxnIds.add(f.freee_txn_id);
+    }
   }
 
   const newRecords = [];
@@ -303,19 +337,23 @@ async function syncWalletTxns() {
       const txns = txnRes.wallet_txns || [];
 
       for (const t of txns) {
-        const dateMs = t.date ? new Date(t.date).getTime() : null;
-        const key = `${dateMs}_${t.amount}_${t.description || ''}`;
-        if (existingKeys.has(key)) continue;
-        existingKeys.add(key);
+        // wallet_txn.id をユニークキーとして使用
+        if (existingTxnIds.has(t.id)) continue;
+        existingTxnIds.add(t.id);
 
+        const dateMs = t.date ? new Date(t.date).getTime() : null;
+        // ステータス: 1=消込待ち, 2=消込済み, 3=無視, 4=消込中, 6=対象外
+        const statusMap = { 1: '消込待ち', 2: '消込済み', 3: '無視', 4: '消込中', 6: '対象外' };
         newRecords.push({
           fields: {
+            freee_txn_id: t.id,
             '日付': dateMs,
             '口座名': w.name,
             '口座種別': w.type,
+            '入出金': t.entry_side === 'income' ? '入金' : '出金',
             '金額': t.amount,
             '摘要': t.description || '',
-            'freee連携': t.deal_id ? '連携済' : '未連携',
+            'ステータス': statusMap[t.status] || '消込待ち',
             'freee_deal_id': t.deal_id || null
           }
         });

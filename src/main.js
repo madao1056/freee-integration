@@ -3,6 +3,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { loadProfile, getCurrentProfile } = require('./utils/freee_api');
 
 // ヘルプメッセージ
 function showHelp() {
@@ -44,14 +45,20 @@ function showHelp() {
   auth:test                         Google認証テスト
   setup                            初期セットアップガイド
 
+🔀 プロファイル:
+  --profile <name>             使用するプロファイルを指定
+                               省略時は FREEE_DEFAULT_PROFILE の値を使用
+                               設定ファイル: .env.{name}
+
 例:
+  node main.js api:test --profile bond       # 法人プロファイル
+  node main.js api:test --profile personal   # 個人事業プロファイル
+  node main.js api:test                      # デフォルトプロファイル
   node main.js sheets:import <your-spreadsheet-id>
   node main.js sheets:report <your-spreadsheet-id> 2026-01
   node main.js sheets:invoice <your-spreadsheet-id> export
   node main.js drive:upload 2025.12
   node main.js api:audit 2025
-  node main.js api:audit 2025 --sheets <spreadsheet-id>
-  node main.js api:test
 
 詳細なドキュメント:
   docs/README.md               - プロジェクト概要
@@ -298,13 +305,37 @@ async function runCommand(command, args) {
   }
 }
 
+// --profile オプションを抽出（引数リストから除去）
+function extractProfileOption(argv) {
+  const args = [...argv];
+  const idx = args.indexOf('--profile');
+  let profileName = null;
+  if (idx !== -1 && idx + 1 < args.length) {
+    profileName = args[idx + 1];
+    args.splice(idx, 2);
+  }
+  return { profileName, args };
+}
+
 // メイン処理
-const args = process.argv.slice(2);
+const { profileName, args } = extractProfileOption(process.argv.slice(2));
 const command = args[0];
 
 if (!command || command === 'help' || command === '--help') {
   showHelp();
   process.exit(0);
+}
+
+// プロファイルをロード（--profile 指定 or FREEE_DEFAULT_PROFILE）
+try {
+  const loaded = loadProfile(profileName || undefined);
+  if (loaded) {
+    const displayName = process.env.FREEE_PROFILE_NAME || loaded;
+    console.log(`[${displayName}] プロファイル: ${loaded}\n`);
+  }
+} catch (e) {
+  console.error('プロファイルエラー:', e.message);
+  process.exit(1);
 }
 
 runCommand(command, args.slice(1)).catch(error => {

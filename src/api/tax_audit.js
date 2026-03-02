@@ -1,5 +1,5 @@
 // 確定申告データ品質チェックツール
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest, getConfig } = require('../utils/freee_api');
 
 const config = getConfig();

@@ -1,7 +1,7 @@
 // freee API - 勘定科目一覧の取得と整理
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest, getConfig } = require('../utils/freee_api');
 
 const config = getConfig();

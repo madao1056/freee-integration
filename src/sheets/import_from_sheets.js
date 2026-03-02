@@ -1,6 +1,6 @@
 // Google Sheets からfreee APIへのデータ連携スクリプト
 const { google } = require('googleapis');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest, getConfig } = require('../utils/freee_api');
 const { authenticateGoogleSheets } = require('../utils/sheets_helper');
 

@@ -1,9 +1,47 @@
 // freee API 共通クライアント
-// 全スクリプト共通のAPIリクエスト関数 + トークン自動更新
+// 全スクリプト共通のAPIリクエスト関数 + トークン自動更新 + マルチプロファイル
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+const dotenv = require('dotenv');
+
+// デフォルトで .env をロード（共通設定）
+dotenv.config({ quiet: true });
+
+/** @type {string|null} アクティブなプロファイル名 */
+let _currentProfile = null;
+
+/**
+ * プロファイルをロード
+ * .env（共通）を先にロード済みの状態で、.env.{name} を上書きロード
+ * @param {string} [name] - プロファイル名。省略時は FREEE_DEFAULT_PROFILE を使用
+ * @returns {string} ロードしたプロファイル名
+ */
+function loadProfile(name) {
+  const profileName = name || process.env.FREEE_DEFAULT_PROFILE;
+  if (!profileName) {
+    // プロファイル指定なし＆デフォルト未設定 → 従来の .env のみで動作
+    return '';
+  }
+
+  const profileEnvPath = path.resolve(process.cwd(), `.env.${profileName}`);
+  if (!fs.existsSync(profileEnvPath)) {
+    throw new Error(`プロファイル設定ファイルが見つかりません: .env.${profileName}`);
+  }
+
+  // .env.{profile} の値で process.env を上書き
+  dotenv.config({ path: profileEnvPath, override: true, quiet: true });
+  _currentProfile = profileName;
+  return profileName;
+}
+
+/**
+ * 現在のプロファイル名を返す
+ * @returns {string|null}
+ */
+function getCurrentProfile() {
+  return _currentProfile;
+}
 
 /**
  * 共通設定を取得
@@ -25,7 +63,9 @@ function getConfig() {
  * @param {string} newRefreshToken
  */
 function updateEnvTokens(newAccessToken, newRefreshToken) {
-  const envPath = path.resolve(process.cwd(), '.env');
+  // プロファイルが有効なら .env.{profile} に書き込む、なければ .env
+  const envFileName = _currentProfile ? `.env.${_currentProfile}` : '.env';
+  const envPath = path.resolve(process.cwd(), envFileName);
   if (!fs.existsSync(envPath)) return;
 
   let envContent = fs.readFileSync(envPath, 'utf8');
@@ -247,5 +287,7 @@ module.exports = {
   freeeApiRequest,
   freeeApiUpload,
   refreshToken,
-  updateEnvTokens
+  updateEnvTokens,
+  loadProfile,
+  getCurrentProfile
 };

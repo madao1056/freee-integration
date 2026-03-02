@@ -1,7 +1,7 @@
 // Lark 共通クライアント
 // Bot通知・メッセージカード送信
 const https = require('https');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 /**
  * Lark tenant_access_token を取得
@@ -209,6 +209,48 @@ async function notifySummary(chatId, title, lines) {
   return sendCard(chatId, card);
 }
 
+/**
+ * Bot作成リソースのオーナーを譲渡し、チャットメンバーにfull_access権限を付与
+ * @param {string} token - リソースのtoken（Base app_token等）
+ * @param {string} type - リソース種別（'bitable' 等）
+ */
+async function grantAccessToChatMembers(token, type) {
+  const chatId = process.env.LARK_CHAT_ID;
+  if (!chatId) return;
+
+  // チャットメンバー一覧を取得
+  const memberRes = await larkApiRequest(
+    `/open-apis/im/v1/chats/${chatId}/members?page_size=50`,
+    'GET',
+    {}
+  );
+  const members = (memberRes.data && memberRes.data.items) || [];
+
+  // 最初のメンバーにオーナー譲渡（Botの親フォルダ制約を解除）
+  let ownerTransferred = false;
+  for (const m of members) {
+    try {
+      // まずfull_access付与
+      await larkApiRequest(
+        `/open-apis/drive/v1/permissions/${token}/members?type=${type}&need_notification=false`,
+        'POST',
+        { member_type: 'openid', member_id: m.member_id, perm: 'full_access' }
+      );
+      // 最初のメンバーにオーナー譲渡
+      if (!ownerTransferred) {
+        await larkApiRequest(
+          `/open-apis/drive/v1/permissions/${token}/members/transfer_owner?type=${type}&need_notification=false`,
+          'POST',
+          { member_type: 'openid', member_id: m.member_id }
+        );
+        ownerTransferred = true;
+      }
+    } catch (e) {
+      // Bot自身への付与失敗等は無視
+    }
+  }
+}
+
 module.exports = {
   getToken,
   larkApiRequest,
@@ -217,5 +259,6 @@ module.exports = {
   sendCard,
   buildDealCard,
   notifyDeal,
-  notifySummary
+  notifySummary,
+  grantAccessToChatMembers
 };

@@ -1,6 +1,6 @@
 // freee API 動作確認テストスクリプト
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest } = require('../utils/freee_api');
 
 // テスト結果を記録

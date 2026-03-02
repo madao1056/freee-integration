@@ -1,6 +1,6 @@
 // 請求書連携スクリプト（インポート/エクスポート）
 const { google } = require('googleapis');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest, getConfig } = require('../utils/freee_api');
 const { authenticateGoogleSheets, createSheet, writeToSheet, formatHeader } = require('../utils/sheets_helper');
 

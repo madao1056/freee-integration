@@ -1,5 +1,5 @@
 // freee API - 事業所情報の取得
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest } = require('../utils/freee_api');
 
 // 事業所一覧を取得

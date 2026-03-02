@@ -1,6 +1,6 @@
 // freee API → Google Sheets エクスポートスクリプト
 const { google } = require('googleapis');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { freeeApiRequest, getConfig } = require('../utils/freee_api');
 const { authenticateGoogleSheets, createSheet, writeToSheet, formatHeader } = require('../utils/sheets_helper');
 

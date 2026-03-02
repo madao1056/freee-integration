@@ -1,8 +1,11 @@
-# 環境変数
+# 環境変数（マルチプロファイル対応）
 .env
+.env.*
+!.env.example
 
 # 認証関連（重要：絶対にGitにアップロードしない）
 service-account-key.json
+service-account-key.*.json
 credentials.json
 token.json
 client_id.json
@@ -24,8 +27,13 @@ package-lock.json
 .vscode/
 .idea/
 
-# Lark Base設定
+# Lark Base設定（プロファイル別）
 .lark_base_config.json
+.lark_base_config.*.json
+
+# レシート処理済みファイル（プロファイル別）
+processed_receipts.json
+processed_receipts.*.json
 
 # 一時ファイル
 *.tmp
