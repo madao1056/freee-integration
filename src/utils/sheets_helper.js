@@ -10,7 +10,9 @@ const { getConfig } = require('./freee_api');
  */
 async function authenticateGoogleSheets() {
   const config = getConfig();
-  const keyFilePath = path.resolve(config.serviceAccountKeyFile);
+  const keyFilePath = path.isAbsolute(config.serviceAccountKeyFile)
+    ? config.serviceAccountKeyFile
+    : path.resolve(config.serviceAccountKeyFile);
 
   if (!fs.existsSync(keyFilePath)) {
     throw new Error(`サービスアカウントキーファイルが見つかりません: ${keyFilePath}`);

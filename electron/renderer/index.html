@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <title>freee連携ツール</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="profile-switcher" id="profileSwitcher"></div>
+    <div class="titlebar-title">freee連携ツール</div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar"></div>
+
+    <!-- Main -->
+    <div class="main-area">
+      <!-- Quotation select (for invoice creation) -->
+      <div class="quotation-select" id="quotationSelect" style="display:none;">
+        <div class="form-header">
+          <h2 class="form-title">請求書作成 - 見積書を選択</h2>
+          <div class="form-header-actions">
+            <button class="btn-cancel" id="quotationSelectCancel">キャンセル</button>
+            <button class="btn-run" id="quotationSelectNew">新規作成</button>
+          </div>
+        </div>
+        <div class="quotation-select-body" id="quotationSelectBody">
+          <p class="loading-text">見積書を読み込み中...</p>
+        </div>
+      </div>
+
+      <!-- Invoice / Quotation form -->
+      <div class="invoice-form" id="invoiceForm" style="display:none;">
+        <div class="form-header">
+          <h2 class="form-title" id="formTitle">請求書作成</h2>
+          <div class="form-header-actions">
+            <button class="btn-cancel" id="formCancel">キャンセル</button>
+            <button class="btn-run" id="formSubmit">作成</button>
+          </div>
+        </div>
+        <div class="form-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>取引先 *</label>
+              <select id="formPartner"><option value="">読み込み中...</option></select>
+            </div>
+            <div class="form-field">
+              <label>敬称 *</label>
+              <select id="formPartnerTitle">
+                <option value="御中">御中</option>
+                <option value="様">様</option>
+                <option value=" ">(空白)</option>
+              </select>
+            </div>
+            <div class="form-field form-field-wide">
+              <label>件名</label>
+              <input type="text" id="formSubject" placeholder="例: Webサイト制作">
+            </div>
+            <div class="form-field">
+              <label id="formDateLabel">請求日</label>
+              <input type="date" id="formDate">
+            </div>
+            <div class="form-field form-field-wide" id="formBillingDateField">
+              <label class="checkbox-label">
+                <input type="checkbox" id="formBillingSameAsDate" checked>
+                請求書日付を請求日と同じにする
+              </label>
+              <input type="date" id="formBillingDate" style="display:none;">
+            </div>
+            <div class="form-field">
+              <label>支払期限</label>
+              <input type="date" id="formPaymentDate">
+            </div>
+            <div class="form-field">
+              <label>税区分</label>
+              <select id="formTaxEntry">
+                <option value="out">外税</option>
+                <option value="in">内税</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>端数処理</label>
+              <select id="formTaxFraction">
+                <option value="omit">切り捨て</option>
+                <option value="round">四捨五入</option>
+                <option value="raise">切り上げ</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="line-items-section">
+            <table class="line-items-table">
+              <thead>
+                <tr>
+                  <th class="col-desc">品名</th>
+                  <th class="col-qty">数量</th>
+                  <th class="col-unit">単位</th>
+                  <th class="col-price">単価</th>
+                  <th class="col-tax">税率</th>
+                  <th class="col-del"></th>
+                </tr>
+              </thead>
+              <tbody id="lineItemsBody"></tbody>
+            </table>
+            <div class="line-actions">
+              <button class="btn-add-line" id="addItemLine">+ 品目行</button>
+              <button class="btn-add-line" id="addTextLine">+ テキスト行</button>
+            </div>
+          </div>
+
+          <div class="form-field form-field-wide">
+            <label>備考</label>
+            <textarea id="formNote" rows="3" placeholder="備考・振込先など"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Receipt upload screen -->
+      <div class="receipt-upload" id="receiptUpload" style="display:none;">
+        <div class="form-header">
+          <h2 class="form-title">レシートアップロード</h2>
+          <div class="form-header-actions">
+            <button class="btn-cancel" id="receiptCancel">キャンセル</button>
+            <button class="btn-run" id="receiptSubmit" disabled>アップロード</button>
+          </div>
+        </div>
+        <div class="receipt-upload-body">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-content">
+              <div class="drop-zone-icon">&#128196;</div>
+              <div class="drop-zone-text">ファイルをドラッグ&amp;ドロップ</div>
+              <div class="drop-zone-sub">または</div>
+              <button class="btn-file-select" id="fileSelectBtn">クリックして選択</button>
+              <div class="drop-zone-formats">対応形式: JPEG, PNG, GIF, PDF / 最大サイズ: 10MB</div>
+            </div>
+            <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.gif,.pdf" style="display:none;">
+          </div>
+          <div class="file-list" id="fileList"></div>
+          <div class="progress-section" id="progressSection" style="display:none;">
+            <div class="progress-bar-container">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">0/0 ファイル完了</div>
+          </div>
+          <div class="upload-summary" id="uploadSummary" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="terminal-wrapper">
+        <div class="terminal-container">
+          <div id="terminal"></div>
+        </div>
+        <!-- File preview panel -->
+        <div class="preview-panel" id="previewPanel">
+          <div class="preview-header">
+            <span class="preview-filename" id="previewFilename"></span>
+            <button class="preview-close" id="previewClose">×</button>
+          </div>
+          <pre class="preview-content" id="previewContent"></pre>
+        </div>
+      </div>
+      <!-- File toast notification -->
+      <div class="file-toast" id="fileToast">
+        <span class="file-toast-icon">&#128196;</span>
+        <span class="file-toast-text" id="fileToastText"></span>
+        <button class="file-toast-btn" id="fileToastBtn">プレビュー</button>
+        <button class="file-toast-dismiss" id="fileToastDismiss">×</button>
+      </div>
+      <!-- Output panel (bottom) for sidebar command results -->
+      <div class="output-panel" id="outputPanel">
+        <div class="output-panel-header">
+          <span class="output-panel-title" id="outputPanelTitle">コマンド出力</span>
+          <div class="output-panel-actions">
+            <button class="output-panel-stop" id="outputStopBtn" style="display:none;">停止</button>
+            <button class="output-panel-close" id="outputCloseBtn">×</button>
+          </div>
+        </div>
+        <div class="output-panel-body" id="outputTerminal"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <span><span class="status-indicator" id="statusDot"></span><span id="statusText">待機中</span></span>
+    <span>プロファイル: <span class="status-profile" id="statusProfile">-</span></span>
+  </div>
+
+  <!-- Modal for args -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <h3 id="modalTitle">引数を入力</h3>
+      <div id="modalFields"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="modalCancel">キャンセル</button>
+        <button class="btn-run" id="modalRun">実行</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

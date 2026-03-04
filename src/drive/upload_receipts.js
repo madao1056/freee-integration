@@ -22,7 +22,9 @@ const SUPPORTED_MIME_TYPES = [
 // Google Drive認証
 async function authenticateDrive() {
   const auth = new google.auth.GoogleAuth({
-    keyFile: path.resolve(CONFIG.serviceAccountKeyFile),
+    keyFile: path.isAbsolute(CONFIG.serviceAccountKeyFile)
+      ? CONFIG.serviceAccountKeyFile
+      : path.resolve(CONFIG.serviceAccountKeyFile),
     scopes: ['https://www.googleapis.com/auth/drive.readonly']
   });
 

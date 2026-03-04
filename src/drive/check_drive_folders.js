@@ -2,9 +2,11 @@
 const { google } = require('googleapis');
 const path = require('path');
 
-const SERVICE_ACCOUNT_FILE = './service-account-key.json';
+const { getConfig } = require('../utils/freee_api');
+const config = getConfig();
+const SERVICE_ACCOUNT_FILE = config.serviceAccountKeyFile;
 // .envのDRIVE_ROOT_FOLDER_IDから取得
-const DRIVE_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID;
+const DRIVE_FOLDER_ID = config.driveRootFolderId;
 
 async function checkDriveFolders() {
   console.log('========================================');

@@ -2,7 +2,7 @@
   "name": "freee-integration",
   "version": "1.0.0",
   "description": "freee会計APIと連携して、スプレッドシートやGoogle Driveからデータを自動登録するツール",
-  "main": "src/main.js",
+  "main": "electron/main.js",
   "bin": {
     "freee": "./src/main.js"
   },
@@ -11,14 +11,47 @@
     "test": "node src/main.js api:test",
     "setup": "node src/main.js setup",
     "sheets:import": "node src/main.js sheets:import",
-    "drive:upload": "node src/main.js drive:upload"
+    "drive:upload": "node src/main.js drive:upload",
+    "electron": "electron electron/main.js",
+    "build": "electron-builder",
+    "postinstall": "electron-rebuild"
   },
   "keywords": ["freee", "accounting", "api", "automation", "google-sheets", "google-drive"],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "node-pty": "^1.0.0",
     "dotenv": "^17.2.3",
     "form-data": "^4.0.5",
     "googleapis": "^169.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.bond.freee-integration",
+    "productName": "freee連携ツール",
+    "asar": false,
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": ["dmg"],
+      "icon": "electron/assets/icon.icns"
+    },
+    "files": [
+      "src/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "config",
+        "to": "config"
+      }
+    ]
   }
 }

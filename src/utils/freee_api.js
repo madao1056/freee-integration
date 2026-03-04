@@ -5,8 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
+// データルート: パッケージ版では FREEE_DATA_ROOT 環境変数を使用
+function getDataRoot() {
+  return process.env.FREEE_DATA_ROOT || process.cwd();
+}
+
 // デフォルトで .env をロード（共通設定）
-dotenv.config({ quiet: true });
+dotenv.config({ path: path.join(getDataRoot(), '.env'), quiet: true });
 
 /** @type {string|null} アクティブなプロファイル名 */
 let _currentProfile = null;
@@ -24,7 +29,7 @@ function loadProfile(name) {
     return '';
   }
 
-  const profileEnvPath = path.resolve(process.cwd(), `.env.${profileName}`);
+  const profileEnvPath = path.resolve(getDataRoot(), `.env.${profileName}`);
   if (!fs.existsSync(profileEnvPath)) {
     throw new Error(`プロファイル設定ファイルが見つかりません: .env.${profileName}`);
   }
@@ -48,11 +53,12 @@ function getCurrentProfile() {
  * @returns {{ freeeToken: string, freeeCompanyId: number, spreadsheetId: string, serviceAccountKeyFile: string, driveRootFolderId: string }}
  */
 function getConfig() {
+  const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || './service-account-key.json';
   return {
     freeeToken: process.env.FREEE_ACCESS_TOKEN,
     freeeCompanyId: parseInt(process.env.FREEE_COMPANY_ID),
     spreadsheetId: process.env.SPREADSHEET_ID,
-    serviceAccountKeyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || './service-account-key.json',
+    serviceAccountKeyFile: path.resolve(getDataRoot(), keyFile),
     driveRootFolderId: process.env.DRIVE_ROOT_FOLDER_ID
   };
 }
@@ -65,7 +71,7 @@ function getConfig() {
 function updateEnvTokens(newAccessToken, newRefreshToken) {
   // プロファイルが有効なら .env.{profile} に書き込む、なければ .env
   const envFileName = _currentProfile ? `.env.${_currentProfile}` : '.env';
-  const envPath = path.resolve(process.cwd(), envFileName);
+  const envPath = path.resolve(getDataRoot(), envFileName);
   if (!fs.existsSync(envPath)) return;
 
   let envContent = fs.readFileSync(envPath, 'utf8');

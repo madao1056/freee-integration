@@ -2,7 +2,8 @@
 const { google } = require('googleapis');
 const path = require('path');
 
-const SERVICE_ACCOUNT_FILE = './service-account-key.json';
+const { getConfig } = require('../utils/freee_api');
+const SERVICE_ACCOUNT_FILE = getConfig().serviceAccountKeyFile;
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || process.argv[2];
 
 async function addSampleData() {

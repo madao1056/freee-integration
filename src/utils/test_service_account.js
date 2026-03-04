@@ -3,7 +3,8 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
-const SERVICE_ACCOUNT_FILE = './service-account-key.json';
+const { getConfig } = require('./freee_api');
+const SERVICE_ACCOUNT_FILE = getConfig().serviceAccountKeyFile;
 
 async function testServiceAccount() {
   console.log('========================================');

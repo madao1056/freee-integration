@@ -39,3 +39,8 @@ processed_receipts.*.json
 *.tmp
 temp/
 debug/
+
+# Electron build
+dist/
+build/
+*.dmg
