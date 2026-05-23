@@ -753,6 +753,570 @@ runCommand(command, args.slice(1)).catch(error => {
 });
 ```
 
+### 2-3. API テストスクリプト (`src/api/test_api.js`)
+
+```javascript
+// freee API 動作確認テストスクリプト
+const fs = require('fs');
+require('dotenv').config({ quiet: true });
+const { freeeApiRequest } = require('../utils/freee_api');
+
+// テスト結果を記録
+const testResults = {
+  timestamp: new Date().toISOString(),
+  tests: []
+};
+
+// テスト1: 事業所一覧を取得（GET）
+async function testGetCompanies() {
+  console.log('\n===== TEST 1: 事業所一覧取得 (GET) =====');
+  try {
+    const response = await freeeApiRequest('/api/1/companies');
+    console.log(`ステータス: 200 OK`);
+
+    const result = {
+      testName: '事業所一覧取得',
+      method: 'GET',
+      endpoint: '/api/1/companies',
+      status: 200,
+      success: true
+    };
+
+    if (response?.companies) {
+      console.log(`取得事業所数: ${response.companies.length}`);
+      result.companiesCount = response.companies.length;
+
+      if (response.companies.length > 0) {
+        const company = response.companies[0];
+        console.log(`最初の事業所: ${company.display_name} (ID: ${company.id})`);
+        result.firstCompany = {
+          id: company.id,
+          name: company.display_name,
+          role: company.role
+        };
+        testResults.tests.push(result);
+        return company.id;
+      }
+    }
+
+    testResults.tests.push(result);
+  } catch (error) {
+    console.error('エラー:', error.message);
+    testResults.tests.push({
+      testName: '事業所一覧取得',
+      method: 'GET',
+      endpoint: '/api/1/companies',
+      success: false,
+      error: error.message
+    });
+  }
+  return null;
+}
+
+// テスト2: 取引先一覧を取得（GET）
+async function testGetPartners(companyId) {
+  console.log('\n===== TEST 2: 取引先一覧取得 (GET) =====');
+  if (!companyId) {
+    console.log('スキップ: 事業所IDが取得できませんでした');
+    return null;
+  }
+
+  try {
+    const response = await freeeApiRequest(`/api/1/partners?company_id=${companyId}&limit=3`);
+    console.log(`ステータス: 200 OK`);
+
+    const result = {
+      testName: '取引先一覧取得',
+      method: 'GET',
+      endpoint: '/api/1/partners',
+      status: 200,
+      success: true
+    };
+
+    if (response?.partners) {
+      console.log(`取得取引先数: ${response.partners.length}`);
+      result.partnersCount = response.partners.length;
+
+      if (response.partners.length > 0) {
+        console.log(`最初の取引先: ${response.partners[0].name}`);
+      }
+    }
+
+    testResults.tests.push(result);
+  } catch (error) {
+    console.error('エラー:', error.message);
+    testResults.tests.push({
+      testName: '取引先一覧取得',
+      method: 'GET',
+      endpoint: '/api/1/partners',
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+// テスト3: メモタグを作成（POST）
+async function testCreateTag(companyId) {
+  console.log('\n===== TEST 3: メモタグ作成 (POST) =====');
+  if (!companyId) {
+    console.log('スキップ: 事業所IDが取得できませんでした');
+    return null;
+  }
+
+  const tagData = {
+    company_id: companyId,
+    name: `テストタグ_${Date.now()}`
+  };
+
+  try {
+    const response = await freeeApiRequest('/api/1/tags', 'POST', tagData);
+    console.log(`ステータス: 201 Created`);
+
+    const result = {
+      testName: 'メモタグ作成',
+      method: 'POST',
+      endpoint: '/api/1/tags',
+      status: 201,
+      success: true
+    };
+
+    if (response?.tag) {
+      console.log(`作成成功: ${response.tag.name} (ID: ${response.tag.id})`);
+      result.createdTag = {
+        id: response.tag.id,
+        name: response.tag.name
+      };
+      testResults.tests.push(result);
+      return response.tag.id;
+    }
+
+    testResults.tests.push(result);
+  } catch (error) {
+    console.error('エラー:', error.message);
+    testResults.tests.push({
+      testName: 'メモタグ作成',
+      method: 'POST',
+      endpoint: '/api/1/tags',
+      success: false,
+      error: error.message
+    });
+  }
+  return null;
+}
+
+// テスト4: メモタグを更新（PUT）
+async function testUpdateTag(tagId, companyId) {
+  console.log('\n===== TEST 4: メモタグ更新 (PUT) =====');
+  if (!tagId || !companyId) {
+    console.log('スキップ: タグIDまたは事業所IDが取得できませんでした');
+    return;
+  }
+
+  const updateData = {
+    company_id: companyId,
+    name: `更新済みタグ_${Date.now()}`
+  };
+
+  try {
+    const response = await freeeApiRequest(`/api/1/tags/${tagId}`, 'PUT', updateData);
+    console.log(`ステータス: 200 OK`);
+
+    const result = {
+      testName: 'メモタグ更新',
+      method: 'PUT',
+      endpoint: `/api/1/tags/${tagId}`,
+      status: 200,
+      success: true
+    };
+
+    if (response?.tag) {
+      console.log(`更新成功: ${response.tag.name}`);
+      result.updatedTag = {
+        id: response.tag.id,
+        name: response.tag.name
+      };
+    }
+
+    testResults.tests.push(result);
+  } catch (error) {
+    console.error('エラー:', error.message);
+    testResults.tests.push({
+      testName: 'メモタグ更新',
+      method: 'PUT',
+      endpoint: `/api/1/tags/${tagId}`,
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+// テスト5: メモタグを削除（DELETE）
+async function testDeleteTag(tagId, companyId) {
+  console.log('\n===== TEST 5: メモタグ削除 (DELETE) =====');
+  if (!tagId || !companyId) {
+    console.log('スキップ: タグIDまたは事業所IDが取得できませんでした');
+    return;
+  }
+
+  try {
+    await freeeApiRequest(`/api/1/tags/${tagId}?company_id=${companyId}`, 'DELETE');
+    console.log(`ステータス: 204 No Content`);
+    console.log('削除成功');
+
+    testResults.tests.push({
+      testName: 'メモタグ削除',
+      method: 'DELETE',
+      endpoint: `/api/1/tags/${tagId}`,
+      status: 204,
+      success: true
+    });
+  } catch (error) {
+    console.error('エラー:', error.message);
+    testResults.tests.push({
+      testName: 'メモタグ削除',
+      method: 'DELETE',
+      endpoint: `/api/1/tags/${tagId}`,
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+// テスト6: 勘定科目一覧を取得（GET）
+async function testGetAccountItems(companyId) {
+  console.log('\n===== TEST 6: 勘定科目一覧取得 (GET) =====');
+  if (!companyId) {
+    console.log('スキップ: 事業所IDが取得できませんでした');
+    return;
+  }
+
+  try {
+    const response = await freeeApiRequest(`/api/1/account_items?company_id=${companyId}&limit=5`);
+    console.log(`ステータス: 200 OK`);
+
+    const result = {
+      testName: '勘定科目一覧取得',
+      method: 'GET',
+      endpoint: '/api/1/account_items',
+      status: 200,
+      success: true
+    };
+
+    if (response?.account_items) {
+      console.log(`取得勘定科目数: ${response.account_items.length}`);
+      result.accountItemsCount = response.account_items.length;
+    }
+
+    testResults.tests.push(result);
+  } catch (error) {
+    console.error('エラー:', error.message);
+    testResults.tests.push({
+      testName: '勘定科目一覧取得',
+      method: 'GET',
+      endpoint: '/api/1/account_items',
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+// メイン処理
+async function main() {
+  console.log('========================================');
+  console.log('   freee API 動作確認テスト');
+  console.log('========================================');
+  console.log(`実行時刻: ${new Date().toLocaleString('ja-JP')}`);
+
+  try {
+    const companyId = await testGetCompanies();
+
+    if (companyId) {
+      testResults.companyId = companyId;
+
+      await testGetPartners(companyId);
+      await testGetAccountItems(companyId);
+
+      const tagId = await testCreateTag(companyId);
+      if (tagId) {
+        await testUpdateTag(tagId, companyId);
+        await testDeleteTag(tagId, companyId);
+      }
+    }
+
+    // テスト結果のサマリー
+    console.log('\n========================================');
+    console.log('   テスト結果サマリー');
+    console.log('========================================');
+
+    const successCount = testResults.tests.filter(t => t.success).length;
+    const totalCount = testResults.tests.length;
+
+    console.log(`実行テスト数: ${totalCount}`);
+    console.log(`成功: ${successCount}`);
+    console.log(`失敗: ${totalCount - successCount}`);
+    console.log('');
+
+    testResults.tests.forEach((test, index) => {
+      const status = test.success ? '✓' : '✗';
+      console.log(`${status} ${index + 1}. ${test.testName} (${test.method}) - ${test.status || 'ERROR'}`);
+    });
+
+    // 結果をJSONファイルに保存
+    const path = require('path');
+    const outputPath = path.resolve(process.cwd(), 'test_results.json');
+    fs.writeFileSync(outputPath, JSON.stringify(testResults, null, 2));
+
+    console.log('\nテスト結果をtest_results.jsonに保存しました');
+
+  } catch (error) {
+    console.error('テスト実行エラー:', error);
+  }
+}
+
+// 実行
+main();
+```
+
+### 2-4. 事業所情報取得 (`src/api/get_companies.js`)
+
+```javascript
+// freee API - 事業所情報の取得
+require('dotenv').config({ quiet: true });
+const { freeeApiRequest } = require('../utils/freee_api');
+
+// 事業所一覧を取得
+async function getCompanies() {
+  const response = await freeeApiRequest('/api/1/companies');
+
+  console.log('===== 事業所一覧 =====');
+  console.log(`取得件数: ${response.companies.length}件\n`);
+
+  response.companies.forEach((company, index) => {
+    console.log(`【事業所 ${index + 1}】`);
+    console.log(`  ID: ${company.id}`);
+    console.log(`  事業所名: ${company.display_name}`);
+    console.log(`  役割: ${company.role}`);
+
+    if (company.name) {
+      console.log(`  正式名称: ${company.name}`);
+    }
+    if (company.name_kana) {
+      console.log(`  カナ名称: ${company.name_kana}`);
+    }
+    if (company.phone1) {
+      console.log(`  電話番号: ${company.phone1}`);
+    }
+    if (company.zipcode) {
+      console.log(`  郵便番号: ${company.zipcode}`);
+    }
+    if (company.prefecture_name) {
+      console.log(`  都道府県: ${company.prefecture_name}`);
+    }
+    if (company.street_name1) {
+      console.log(`  住所: ${company.street_name1} ${company.street_name2 || ''}`);
+    }
+    console.log('');
+  });
+
+  return response;
+}
+
+// 特定の事業所の詳細情報を取得
+async function getCompanyDetails(companyId) {
+  const response = await freeeApiRequest(`/api/1/companies/${companyId}`);
+
+  console.log(`===== 事業所詳細情報 (ID: ${companyId}) =====`);
+  const company = response.company;
+
+  console.log('【基本情報】');
+  console.log(`  事業所名: ${company.display_name}`);
+  console.log(`  役割: ${company.role}`);
+
+  console.log('\n【会計期間】');
+  console.log(`  会計期間: ${company.fiscal_years[0]?.start_date} 〜 ${company.fiscal_years[0]?.end_date}`);
+  console.log(`  年度の表示形式: ${company.fiscal_years[0]?.display_name}`);
+
+  console.log('\n【設定情報】');
+  console.log(`  業種: ${company.industry_name || '未設定'}`);
+  console.log(`  従業員数: ${company.head_count || '未設定'}`);
+  console.log(`  法人番号: ${company.corporate_number || '未設定'}`);
+
+  console.log('\n【機能設定】');
+  console.log(`  仕訳番号形式: ${company.txn_number_format || '未設定'}`);
+  console.log(`  消費税計算方法: ${company.amount_fraction || '未設定'}`);
+
+  return response;
+}
+
+// 実行
+async function main() {
+  try {
+    console.log('freee API - 事業所情報取得\n');
+    console.log('アクセストークンを使用して事業所情報を取得します...\n');
+
+    const companiesResponse = await getCompanies();
+
+    if (companiesResponse.companies && companiesResponse.companies.length > 0) {
+      const firstCompanyId = companiesResponse.companies[0].id;
+      console.log('\n詳細情報を取得中...\n');
+      await getCompanyDetails(firstCompanyId);
+    }
+
+  } catch (error) {
+    console.error('実行エラー:', error.message);
+    process.exit(1);
+  }
+}
+
+main();
+```
+
+### 2-5. 勘定科目一覧取得 (`src/api/get_account_items.js`)
+
+```javascript
+// freee API - 勘定科目一覧の取得と整理
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config({ quiet: true });
+const { freeeApiRequest, getConfig } = require('../utils/freee_api');
+
+const config = getConfig();
+const COMPANY_ID = config.freeeCompanyId;
+
+// 勘定科目を取得して整理
+async function getAccountItems() {
+  try {
+    console.log('勘定科目を取得中...\n');
+
+    const response = await freeeApiRequest(`/api/1/account_items?company_id=${COMPANY_ID}`);
+
+    if (!response.account_items) {
+      throw new Error('勘定科目の取得に失敗しました');
+    }
+
+    const items = response.account_items;
+    console.log(`取得勘定科目数: ${items.length}件\n`);
+
+    // カテゴリ別に分類
+    const categories = {
+      '資産': [],
+      '負債': [],
+      '純資産': [],
+      '収益': [],
+      '費用': [],
+      'その他': []
+    };
+
+    items.forEach(item => {
+      const categoryName = item.account_category || 'その他';
+      if (categoryName.includes('資産')) {
+        categories['資産'].push(item);
+      } else if (categoryName.includes('負債')) {
+        categories['負債'].push(item);
+      } else if (categoryName.includes('純資産') || categoryName.includes('資本')) {
+        categories['純資産'].push(item);
+      } else if (categoryName.includes('収益') || categoryName.includes('売上')) {
+        categories['収益'].push(item);
+      } else if (categoryName.includes('費用') || categoryName.includes('経費')) {
+        categories['費用'].push(item);
+      } else {
+        categories['その他'].push(item);
+      }
+    });
+
+    // 結果を表示
+    console.log('===== 勘定科目カテゴリ別一覧 =====\n');
+
+    Object.entries(categories).forEach(([category, catItems]) => {
+      if (catItems.length > 0) {
+        console.log(`【${category}】 (${catItems.length}件)`);
+        catItems.slice(0, 10).forEach(item => {
+          const taxInfo = item.tax_name ? ` [${item.tax_name}]` : '';
+          console.log(`  - ${item.name} (ID: ${item.id})${taxInfo}`);
+        });
+        if (catItems.length > 10) {
+          console.log(`  ... 他${catItems.length - 10}件`);
+        }
+        console.log('');
+      }
+    });
+
+    // よく使う勘定科目
+    console.log('===== よく使う勘定科目 =====\n');
+
+    const commonAccounts = [
+      { name: '現金', items: items.filter(i => i.name.includes('現金')) },
+      { name: '普通預金', items: items.filter(i => i.name.includes('普通預金')) },
+      { name: '売掛金', items: items.filter(i => i.name === '売掛金') },
+      { name: '買掛金', items: items.filter(i => i.name === '買掛金') },
+      { name: '売上高', items: items.filter(i => i.name === '売上高') },
+      { name: '仕入高', items: items.filter(i => i.name.includes('仕入')) },
+      { name: '給料', items: items.filter(i => i.name.includes('給料')) },
+      { name: '消耗品費', items: items.filter(i => i.name.includes('消耗品')) },
+      { name: '通信費', items: items.filter(i => i.name.includes('通信費')) },
+      { name: '交通費', items: items.filter(i => i.name.includes('旅費交通費') || i.name.includes('交通費')) },
+      { name: '会議費', items: items.filter(i => i.name.includes('会議費')) },
+      { name: '接待交際費', items: items.filter(i => i.name.includes('接待交際費')) },
+      { name: '広告宣伝費', items: items.filter(i => i.name.includes('広告')) },
+      { name: '支払手数料', items: items.filter(i => i.name.includes('支払手数料')) },
+      { name: '地代家賃', items: items.filter(i => i.name.includes('地代家賃')) },
+      { name: '水道光熱費', items: items.filter(i => i.name.includes('水道光熱費')) }
+    ];
+
+    commonAccounts.forEach(({ name, items: commonItems }) => {
+      if (commonItems.length > 0) {
+        commonItems.forEach(item => {
+          const shortcut = item.shortcut ? ` (${item.shortcut})` : '';
+          console.log(`${name}: ID=${item.id}${shortcut}`);
+        });
+      }
+    });
+
+    // JSONファイルに保存
+    const output = {
+      timestamp: new Date().toISOString(),
+      company_id: COMPANY_ID,
+      total_count: items.length,
+      categories: Object.entries(categories).reduce((acc, [key, catItems]) => {
+        acc[key] = catItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          shortcut: item.shortcut,
+          tax_name: item.tax_name,
+          account_category: item.account_category,
+          account_category_id: item.account_category_id
+        }));
+        return acc;
+      }, {}),
+      common_accounts: commonAccounts.reduce((acc, { name, items: commonItems }) => {
+        if (commonItems.length > 0) {
+          acc[name] = commonItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            shortcut: item.shortcut
+          }));
+        }
+        return acc;
+      }, {})
+    };
+
+    const outputPath = path.resolve(process.cwd(), 'account_items.json');
+    fs.writeFileSync(outputPath, JSON.stringify(output, null, 2), 'utf8');
+
+    console.log('\n\n勘定科目一覧をaccount_items.jsonに保存しました');
+
+    return output;
+
+  } catch (error) {
+    console.error('エラー:', error.message);
+    throw error;
+  }
+}
+
+// 実行
+getAccountItems();
+```
+
 ---
 
 ## Step 3: Claude Code スキル登録
@@ -1060,6 +1624,10 @@ Claude Code: /freee-rule スキル実行
   │   └── freee-rule.md       # このスキル定義
   ├── src/
   │   ├── main.js             # CLIエントリーポイント
+  │   ├── api/
+  │   │   ├── test_api.js     # API動作確認テスト
+  │   │   ├── get_companies.js # 事業所情報取得
+  │   │   └── get_account_items.js # 勘定科目一覧取得
   │   └── utils/
   │       └── freee_api.js    # API共通クライアント
   └── package.json
